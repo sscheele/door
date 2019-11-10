@@ -9,9 +9,8 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind(("", PORT))
 sock.listen(3)
 
-global global_msg
-global_msg_lock = threading.Lock()
-global_msg = bytearray("N", 'utf-8')
+global srv_conn
+srv_conn_lock = threading.Lock()
 
 def recv_timeout(conn, timeout=10, max_size=1024):
     conn.setblocking(0)
@@ -35,35 +34,41 @@ def recv_timeout(conn, timeout=10, max_size=1024):
     return bytes(ret_val)
 
 def on_new_client(conn, addr):
-    global global_msg
+    global srv_conn
     try:
         msg = recv_timeout(conn)
     except (TimeoutError, BufferError):
         conn.close()
         return
-    if bytes.decode(msg).strip() != PASSWORD:
+    msg = bytes.decode(msg).strip()
+    if not msg.endswith(PASSWORD):
         conn.close()
         return
-    conn.send(bytearray("Logged in!", 'utf-8'))
-    global_msg_lock.acquire()
-    conn.send(global_msg)
-    global_msg_lock.release()
-    while True:
+    if msg.startswith("pi"):
+        # is Pi
+        srv_conn_lock.acquire()
+        srv_conn = conn
+        srv_conn_lock.release()
+        conn.send(bytearray("Connected as Pi", 'utf-8'))
+        return
+    # is client
+    if srv_conn:
         try:
-            msg = conn.recv(1024)
-            if not msg:
-                break
-            global_msg_lock.acquire()
-            global_msg = msg
-            global_msg_lock.release()
-            conn.send(msg)
-        except BlockingIOError:
-            time.sleep(0.1) # allow other TCP communication to finish
+            srv_conn_lock.acquire()
+            srv_conn.send(bytearray("Open", 'utf-8'))
+        except socket.error:
+            conn.send(bytearray("Error sending to Pi", 'utf-8'))
+        finally:
+            srv_conn_lock.release()
+    else:
+        conn.send(bytearray("No Pi connected", 'utf-8'))
+
     conn.close()
 
 while True:
     try:
         conn, addr = sock.accept()
+        print("Accepting connection from", addr)
         threading._start_new_thread(on_new_client, (conn, addr))
     except socket.timeout:
         pass

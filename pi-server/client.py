@@ -3,7 +3,7 @@ from secret import *
 import sys
 import time
 
-my_host = "127.0.0.1"
+my_host = SERVER_IP
 my_port = 8000
 
 try:
@@ -14,6 +14,3 @@ except Exception:
     sys.exit(1)
 sock.send(bytearray(PASSWORD, 'utf-8'))
 print(bytes.decode(sock.recv(151)))
-while True:
-    sock.send(bytearray(input("> "), 'utf-8'))
-    print(bytes.decode(sock.recv(151)))

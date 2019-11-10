@@ -3,6 +3,10 @@ from secret import *
 import sys
 import time
 
+# Raspberry Pi imports
+import RPi.GPIO as GPIO
+servoPin = 17
+
 def establish_connection():
     my_host = SERVER_IP
     my_port = 8000
@@ -13,6 +17,14 @@ def establish_connection():
     return sock
 
 def main():
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(servoPin, GPIO.OUT)
+
+    p = GPIO.PWM(servoPin, 50) # runs at 50 MHz
+    p.start(3.5) # start with a 3.5% duty cycle, wait to complete, and remove voltage
+    time.sleep(1)
+    p.ChangeDutyCycle(0)
+    
     try:
         sock = establish_connection()
     except:
@@ -24,6 +36,11 @@ def main():
             print(msg)
             if msg == "Open":
                 print("Opening...")
+                p.ChangeDutyCycle(5.5)
+                time.sleep(1)
+                p.ChangeDutyCycle(3.5)
+                time.sleep(1)
+                p.ChangeDutyCycle(0)
         else:
             try:
                 sock = establish_connection()

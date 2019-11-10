@@ -9,6 +9,10 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind(("", PORT))
 sock.listen(3)
 
+global global_msg
+global_msg_lock = threading.Lock()
+global_msg = bytearray("N", 'utf-8')
+
 def recv_timeout(conn, timeout=10, max_size=1024):
     conn.setblocking(0)
     ret_val = []
@@ -31,6 +35,7 @@ def recv_timeout(conn, timeout=10, max_size=1024):
     return bytes(ret_val)
 
 def on_new_client(conn, addr):
+    global global_msg
     try:
         msg = recv_timeout(conn)
     except (TimeoutError, BufferError):
@@ -40,6 +45,20 @@ def on_new_client(conn, addr):
         conn.close()
         return
     conn.send(bytearray("Logged in!", 'utf-8'))
+    global_msg_lock.acquire()
+    conn.send(global_msg)
+    global_msg_lock.release()
+    while True:
+        try:
+            msg = conn.recv(1024)
+            if not msg:
+                break
+            global_msg_lock.acquire()
+            global_msg = msg
+            global_msg_lock.release()
+            conn.send(msg)
+        except BlockingIOError:
+            time.sleep(0.1) # allow other TCP communication to finish
     conn.close()
 
 while True:

@@ -40,7 +40,11 @@ def on_new_client(conn, addr):
     except (TimeoutError, BufferError):
         conn.close()
         return
-    msg = bytes.decode(msg).strip()
+    try:
+        msg = bytes.decode(msg).strip()
+    except UnicodeDecodeError:
+        print("Unable to decode message from ", addr)
+        return
     if not msg.endswith(PASSWORD):
         conn.close()
         return
